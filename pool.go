@@ -40,7 +40,7 @@ func NewPool(ctx context.Context, poolSize int) (*Pool, context.Context) {
 		tasksBuffered: make(chan taskFunc, poolSize),
 		cap:           poolSize,
 	}
-	p.startWorker() // spin up one worker
+	p.startWorker()
 	return p, ctx
 }
 
@@ -50,13 +50,10 @@ func (p *Pool) Go(task taskFunc) {
 	// Ahh would've worked well if the task chan wasn't buffered
 	// Requiring cap + 1 tasks to start spinning up more goroutines is unexpected behaviour
 
-	p.taskWg.Add(1)
-
 	if p.Size() >= int(p.cap) {
 		select {
 		case p.tasksBuffered <- task:
 		case <-p.ctx.Done():
-			p.taskWg.Done()
 			// don't block when context is cancelled
 		}
 		return
@@ -64,24 +61,16 @@ func (p *Pool) Go(task taskFunc) {
 
 	select {
 	case p.tasks <- task:
-		//log.Println("send successful")
 		return
 	case <-p.ctx.Done():
-		// cancel out
-		p.taskWg.Done()
 		return
 	default:
 	}
 	p.startWorker()
 
-	//log.Println("starting wait")
-
 	select {
 	case p.tasks <- task:
 	case <-p.ctx.Done():
-		// cancel out
-		p.taskWg.Done()
-		// don't block when context is cancelled
 	}
 }
 
@@ -91,22 +80,19 @@ func (p *Pool) startWorker() {
 			select {
 			case task, ok := <-p.tasksBuffered:
 				if !ok {
-					// task channel is closed, kill routine
 					return nil
 				}
+				p.taskWg.Add(1)
 				p.errPool.execute(task)
-				// mark that task as done
 				p.taskWg.Done()
 			case task, ok := <-p.tasks:
 				if !ok {
-					// task channel is closed, kill routine
 					return nil
 				}
+				p.taskWg.Add(1)
 				p.errPool.execute(task)
-				// mark that task as done
 				p.taskWg.Done()
 			case <-p.ctx.Done():
-				p.taskWg.Done()
 				return p.ctx.Err()
 			}
 		}
@@ -116,7 +102,6 @@ func (p *Pool) startWorker() {
 
 func (p *Pool) Wait() error {
 	p.taskWg.Wait()
-	//log.Println("task group done")
 
 	p.closeOnce.Do(func() {
 		close(p.tasks)
@@ -148,7 +133,6 @@ type errorPool struct {
 
 func (e *errorPool) wait() error {
 	e.wg.Wait()
-	//log.Println("err group done")
 	if e.cancel != nil {
 		e.cancel()
 	}

@@ -80,6 +80,7 @@ func TestPool_lazily_loads_goroutines(t *testing.T) {
 func TestPool_exits_when_context_is_cancelled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
 	pool, ctx := NewPool(ctx, 5)
 	var events int32
 
@@ -97,8 +98,8 @@ func TestPool_exits_when_context_is_cancelled(t *testing.T) {
 		t.Errorf("expected error to be context.Canceled, got: %v", err)
 	}
 
-	if events != 0 {
-		t.Errorf("expected no goroutines to run, got: %v", events)
+	if events >= 100 {
+		t.Errorf("expected goroutines to exit early, got: %v", events)
 	}
 }
 
