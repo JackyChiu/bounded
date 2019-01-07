@@ -1,4 +1,4 @@
-package bound_test
+package bounded_test
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/JackyChiu/bound"
+	"github.com/JackyChiu/bounded"
 )
 
 var (
@@ -89,7 +89,7 @@ func ExamplePool_with() {
 	defer cancel()
 
 	// Bounded workers
-	pool, ctx := bound.NewPool(ctx, 20)
+	pool, ctx := bounded.NewPool(ctx, 20)
 	for _, part := range parts {
 		part := part // https://golang.org/doc/faq#closures_and_goroutines
 		select {
@@ -135,7 +135,7 @@ func ExamplePool_withoutPool() {
 		}
 	}
 
-	// Goroutines spwaned are boundless, could be spwaning thousands.
+	// Goroutines spwaned are boundedless, could be spwaning thousands.
 	//
 
 }
@@ -144,7 +144,7 @@ func ExamplePool_withoutPool() {
 // simplify goroutine counting and error handling. This example is derived from
 // the sync.WaitGroup example at https://golang.org/pkg/sync/#example_WaitGroup.
 func ExamplePool_waitgroup_functionality() {
-	var g bound.Pool
+	var g bounded.Pool
 	var urls = []string{
 		"http://www.golang.org/",
 		"http://www.google.com/",
@@ -174,7 +174,7 @@ func ExamplePool_waitgroup_functionality() {
 // and error-handling.
 func ExamplePool_parallel() {
 	Google := func(ctx context.Context, query string) ([]Result, error) {
-		g, ctx := bound.NewPool(ctx, 1)
+		g, ctx := bounded.NewPool(ctx, 1)
 
 		searches := []Search{Web, Image, Video}
 		results := make([]Result, len(searches))

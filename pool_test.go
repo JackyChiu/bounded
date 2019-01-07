@@ -1,4 +1,4 @@
-package bound
+package bounded
 
 import (
 	"context"

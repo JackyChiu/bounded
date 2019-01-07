@@ -1,1 +1,1 @@
-module github.com/JackyChiu/bound
+module github.com/JackyChiu/bounded
