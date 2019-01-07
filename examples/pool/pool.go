@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/JackyChiu/bound"
+	"github.com/JackyChiu/bounded"
 )
 
 // walkFiles starts a goroutine to walk the directory tree at root and send the
@@ -79,20 +79,23 @@ func MD5All(root string) (map[string][md5.Size]byte, error) {
 	defer cancel()
 
 	// Allow a fixed number of goroutines to read and digest files.
-	pool, ctx := bound.NewPool(ctx, 20)
+	pool, ctx := bounded.NewPool(ctx, 20)
 
 	paths := make(chan string, 10)
 	pool.Go(func() error {
 		defer close(paths)
+		// PRODUCER
 		return walkFileTree(ctx, root, paths)
 	})
 
 	results := make(chan result, 10)
 	go func() {
+		// CONSUMER
 		defer close(results)
 		for filepath := range paths {
 			filepath := filepath
 			pool.Go(func() error {
+				// WORKER
 				return readAndSumFile(ctx, filepath, results)
 			})
 		}

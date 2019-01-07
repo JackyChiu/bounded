@@ -144,11 +144,13 @@ func TestZeroGroup(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		poolSize := 5
-		pool, _ := NewPool(context.Background(), poolSize)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
 		var firstErr error
 		for i, err := range tc.errs {
+			pool, _ := NewPool(ctx, 5)
+
 			err := err
 			pool.Go(func() error { return err })
 
