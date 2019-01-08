@@ -1,4 +1,4 @@
-# Bounded Goroutine Management
+# Bounded Goroutine Management [![CircleCI](https://circleci.com/gh/JackyChiu/bounded.svg?style=svg)](https://circleci.com/gh/JackyChiu/bounded)
 `bounded` is a thin concurrency wrapper that provides bounded goroutine management.
 
 Go is designed with lightweight concurrency primitives. Goroutines model concurrent tasks that could be executed by calling `go`.
