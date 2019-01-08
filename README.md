@@ -20,7 +20,8 @@ for item := range itemStream {
 
 Pool provides some simple synchronization and error capturing abilities too.
 Developers can wait for all goroutines in the pool to complete and exit with
-Wait(). The first error captured is returned.
+`Wait()`. If an error occurs in the pool, it's capture and the goroutines are
+notified via `context.Context.Done()`. The first error captured is returned.
 
 ```go
 if err := pool.Wait(); err != nil {
