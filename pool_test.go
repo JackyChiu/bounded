@@ -106,18 +106,18 @@ func TestPool_exits_when_context_is_cancelled(t *testing.T) {
 
 func TestPool_exits_on_error(t *testing.T) {
 	expectedErr := errors.New("error")
-	pool, ctx := NewPool(context.Background(), 5)
+	pool, _ := NewPool(context.Background(), 5)
 	var events int32
 
-	for i := 0; i < 100; i++ {
+	for _, err := range []error{
+		expectedErr,
+		errors.New("pool_test: 1"),
+		errors.New("pool_test: 2"),
+	} {
+		err := err
 		pool.Go(func() error {
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			default:
-				atomic.AddInt32(&events, 1)
-			}
-			return expectedErr
+			atomic.AddInt32(&events, 1)
+			return err
 		})
 	}
 
@@ -149,21 +149,17 @@ func TestZeroGroup(t *testing.T) {
 		defer cancel()
 
 		var firstErr error
-		for i, err := range tc.errs {
-			pool, _ := NewPool(ctx, 5)
+		pool, _ := NewPool(ctx, 1)
 
+		for _, err := range tc.errs {
 			err := err
 			pool.Go(func() error { return err })
-
 			if firstErr == nil && err != nil {
 				firstErr = err
 			}
-
-			if gErr := pool.Wait(); gErr != firstErr {
-				t.Errorf("after %T.Go(func() error { return err }) for err in %v\n"+
-					"g.Wait() = %v; want %v",
-					pool, tc.errs[:i+1], err, firstErr)
-			}
+		}
+		if actualErr := pool.Wait(); actualErr != firstErr {
+			t.Errorf("unexpected error, expected: %v, got: %v", firstErr, actualErr)
 		}
 	}
 }
