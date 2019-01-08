@@ -174,13 +174,13 @@ func ExamplePool_waitgroup_functionality() {
 // and error-handling.
 func ExamplePool_parallel() {
 	Google := func(ctx context.Context, query string) ([]Result, error) {
-		g, ctx := bounded.NewPool(ctx, 1)
+		pool, ctx := bounded.NewPool(ctx, 1)
 
 		searches := []Search{Web, Image, Video}
 		results := make([]Result, len(searches))
 		for i, search := range searches {
 			i, search := i, search // https://golang.org/doc/faq#closures_and_goroutines
-			g.Go(func() error {
+			pool.Go(func() error {
 				result, err := search(ctx, query)
 				if err == nil {
 					results[i] = result
@@ -188,7 +188,7 @@ func ExamplePool_parallel() {
 				return err
 			})
 		}
-		if err := g.Wait(); err != nil {
+		if err := pool.Wait(); err != nil {
 			return nil, err
 		}
 		return results, nil

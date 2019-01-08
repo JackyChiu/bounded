@@ -154,8 +154,8 @@ func (e *errorPool) Go(task taskFunc) {
 	e.wg.Add(1)
 
 	go func() {
-		defer e.wg.Done()
 		e.execute(task)
+		e.wg.Done()
 	}()
 }
 

@@ -15,6 +15,7 @@ func TestPool(t *testing.T) {
 	results := make(chan int)
 
 	for i := 0; i < poolSize; i++ {
+		i := i
 		pool.Go(func() error {
 			results <- i
 			return nil
@@ -26,7 +27,7 @@ func TestPool(t *testing.T) {
 	}
 
 	if err := pool.Wait(); err != nil {
-		t.Error()
+		t.Errorf("unexpected error: %v", err)
 	}
 }
 
