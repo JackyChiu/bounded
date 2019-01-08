@@ -7,28 +7,26 @@ import (
 
 type taskFunc func() error
 
-// Pool should be used once. Once Wait() gets called it's goroutines are reaped.
-// Consider writting a Reset to use the pool again.
-// Should the pool be able to be used concurrently?
+// Pool models the goroutine pool.
 type Pool struct {
-	ctx context.Context
+	errPool errorPool
+	ctx     context.Context
 
 	tasks         chan taskFunc
 	tasksBuffered chan taskFunc
 	closeOnce     sync.Once
-
-	errPool errorPool
-
-	// taskWg is used for task synconization in the Pool
+	// taskWg is used for task completion synchronization in the pool.
 	taskWg sync.WaitGroup
 
-	// cap is the capacity of the pool
-	cap int
-	// the current size of the pool
-	size int
+	limit int
+	size  int
+	// lock is used to have an exclusive writer to the size of the pool.
 	lock sync.RWMutex
 }
 
+// NewPool returns a Pool instances and a new context. The number of goroutines
+// spawned are limited by the given max capacity. The new context includes
+// cancellations from the goroutines in the Pool.
 func NewPool(ctx context.Context, poolSize int) (*Pool, context.Context) {
 	ctx, cancel := context.WithCancel(ctx)
 	p := &Pool{
@@ -38,27 +36,26 @@ func NewPool(ctx context.Context, poolSize int) (*Pool, context.Context) {
 		ctx:           ctx,
 		tasks:         make(chan taskFunc),
 		tasksBuffered: make(chan taskFunc, poolSize),
-		cap:           poolSize,
+		limit:         poolSize,
 	}
 	p.startWorker()
 	return p, ctx
 }
 
+// Go will enqueue the task for execution by one of goroutines in the pool.
+// Calls to Go will spin up workers lazily, as the workers are blocked, new
+// workers will be spawned until the goroutine limit has been reached.
 func (p *Pool) Go(task taskFunc) {
-	// how do you know if the goroutines are backed up or if you should create another goroutine?
-	// by trying to send a task and then selecting
-	// Ahh would've worked well if the task chan wasn't buffered
-	// Requiring cap + 1 tasks to start spinning up more goroutines is unexpected behaviour
-
-	if p.Size() >= int(p.cap) {
+	if p.Size() >= int(p.limit) {
 		select {
 		case p.tasksBuffered <- task:
 		case <-p.ctx.Done():
-			// don't block when context is cancelled
 		}
 		return
 	}
 
+	// This code path is only used while the Pool is still lazily
+	// loading goroutines.
 	select {
 	case p.tasks <- task:
 		return
@@ -66,6 +63,8 @@ func (p *Pool) Go(task taskFunc) {
 		return
 	default:
 	}
+	// Failed sends to the task channel tell us that the workers are busy.
+	// Start a new worker to help execute tasks.
 	p.startWorker()
 
 	select {
@@ -74,6 +73,36 @@ func (p *Pool) Go(task taskFunc) {
 	}
 }
 
+// Wait waits for the tasks and worker goroutines in the pool to exit.
+// The first error to occur in the pool is returned, if any.
+func (p *Pool) Wait() error {
+	// Waits for the tasks to finish execution. When this is confirmed,
+	// the task channels can be closed.
+	p.taskWg.Wait()
+
+	p.closeOnce.Do(func() {
+		close(p.tasks)
+		close(p.tasksBuffered)
+	})
+
+	// Finally we wait for the worker goroutines to exit.
+	return p.errPool.Wait()
+}
+
+// Size is the number of goroutines running in the pool.
+func (p *Pool) Size() int {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+	return p.size
+}
+
+func (p *Pool) incrementSize() {
+	p.lock.Lock()
+	p.size++
+	p.lock.Unlock()
+}
+
+// startWorker spins up a worker ready to execute incoming tasks.
 func (p *Pool) startWorker() {
 	p.errPool.Go(func() error {
 		for {
@@ -100,29 +129,7 @@ func (p *Pool) startWorker() {
 	p.incrementSize()
 }
 
-func (p *Pool) Wait() error {
-	p.taskWg.Wait()
-
-	p.closeOnce.Do(func() {
-		close(p.tasks)
-		close(p.tasksBuffered)
-	})
-
-	return p.errPool.wait()
-}
-
-func (p *Pool) Size() int {
-	p.lock.RLock()
-	defer p.lock.RUnlock()
-	return p.size
-}
-
-func (p *Pool) incrementSize() {
-	p.lock.Lock()
-	p.size++
-	p.lock.Unlock()
-}
-
+// errPool manages a group of goroutines and allows for error tracking.
 type errorPool struct {
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
@@ -131,23 +138,24 @@ type errorPool struct {
 	err     error
 }
 
-func (e *errorPool) wait() error {
-	e.wg.Wait()
-	if e.cancel != nil {
-		e.cancel()
-	}
-	return e.err
-}
-
+// Go spins up a goroutine to execute the task.
 func (e *errorPool) Go(task taskFunc) {
 	e.wg.Add(1)
 
 	go func() {
 		defer e.wg.Done()
-		//log.Println("spun up")
 		e.execute(task)
-		//log.Println("spun down")
 	}()
+}
+
+// Wait waits for all goroutines to exit and returns the first error that
+// occured, if any.
+func (e *errorPool) Wait() error {
+	e.wg.Wait()
+	if e.cancel != nil {
+		e.cancel()
+	}
+	return e.err
 }
 
 // execute runs the task and records the first error that occurs.
