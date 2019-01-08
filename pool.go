@@ -5,9 +5,20 @@ import (
 	"sync"
 )
 
-type taskFunc func() error
+type taskFunc = func() error
 
-// Pool models the goroutine pool.
+// Pool is a bounded goroutine manager. It ensures that goroutines spawned are
+// within the given limit. The benefit being the ability to think and write go
+// programs without worrying about the overhead of spawning too much goroutines.
+//
+// Pool provides some simple synchronization and error capturing abilities too.
+// Developers can wait for all goroutines in the pool to complete and exit with
+// Wait(). The first error captured is returned.
+//
+// Pool lazily spawns workers in the pool as tasks are queued up. Tasks are
+// favored to be completed by an existing worker. If all workers are busy then
+// it will spawn a new worker and enqueue the task again. This behaviour is
+// ongoing until the size of the pool has reached it's limit.
 type Pool struct {
 	errPool errorPool
 	ctx     context.Context
@@ -149,7 +160,7 @@ func (e *errorPool) Go(task taskFunc) {
 }
 
 // Wait waits for all goroutines to exit and returns the first error that
-// occured, if any.
+// occurred, if any.
 func (e *errorPool) Wait() error {
 	e.wg.Wait()
 	if e.cancel != nil {
