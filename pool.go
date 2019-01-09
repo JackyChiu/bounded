@@ -5,8 +5,6 @@ import (
 	"sync"
 )
 
-type taskFunc = func() error
-
 // Pool is a bounded goroutine manager. It ensures that goroutines spawned are
 // within the given limit. The benefit being the ability to think and write go
 // programs without worrying about the overhead of spawning too much goroutines.
@@ -23,7 +21,7 @@ type Pool struct {
 	errPool errorPool
 	ctx     context.Context
 
-	tasks     chan taskFunc
+	tasks     chan func() error
 	closeOnce sync.Once
 	// taskWg is used for task completion synchronization in the pool.
 	taskWg sync.WaitGroup
@@ -44,7 +42,7 @@ func NewPool(ctx context.Context, poolSize int) (*Pool, context.Context) {
 			cancel: cancel,
 		},
 		ctx:   ctx,
-		tasks: make(chan taskFunc),
+		tasks: make(chan func() error),
 		limit: poolSize,
 	}
 	p.startWorker()
@@ -54,7 +52,7 @@ func NewPool(ctx context.Context, poolSize int) (*Pool, context.Context) {
 // Go will enqueue the task for execution by one of goroutines in the pool.
 // Calls to Go will spin up workers lazily, as the workers are blocked, new
 // workers will be spawned until the goroutine limit has been reached.
-func (p *Pool) Go(task taskFunc) {
+func (p *Pool) Go(task func() error) {
 	p.taskWg.Add(1)
 
 	if p.Size() < int(p.limit) {
@@ -137,7 +135,7 @@ type errorPool struct {
 }
 
 // Go spins up a goroutine to execute the task.
-func (e *errorPool) Go(task taskFunc) {
+func (e *errorPool) Go(task func() error) {
 	e.wg.Add(1)
 
 	go func() {
@@ -158,7 +156,7 @@ func (e *errorPool) Wait() error {
 
 // execute runs the task and records the first error that occurs.
 // This in turn cancels any other tasks.
-func (e *errorPool) execute(task taskFunc) {
+func (e *errorPool) execute(task func() error) {
 	err := task()
 	if err == nil {
 		return
