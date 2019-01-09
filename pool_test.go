@@ -120,6 +120,7 @@ func TestPool_exits_on_error(t *testing.T) {
 			atomic.AddInt32(&events, 1)
 			return err
 		})
+		time.Sleep(5 * time.Millisecond)
 	}
 
 	if err := pool.Wait(); expectedErr != err {
