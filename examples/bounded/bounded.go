@@ -12,10 +12,10 @@ import (
 	"time"
 )
 
-// walkFiles starts a goroutine to walk the directory tree at root and send the
+// walkFilesTree starts a goroutine to walk the directory tree at root and send the
 // path of each regular file on the string channel.  It sends the result of the
-// walk on the error channel.  If done is closed, walkFiles abandons its work.
-func walkFiles(done <-chan struct{}, root string) (<-chan string, <-chan error) {
+// walk on the error channel.  If done is closed, walkFilesTree abandons its work.
+func walkFilesTree(done <-chan struct{}, root string) (<-chan string, <-chan error) {
 	paths := make(chan string, 10)
 	errc := make(chan error, 1)
 	go func() {
@@ -47,9 +47,9 @@ type result struct {
 	err  error
 }
 
-// digester reads path names from paths and sends digests of the corresponding
+// readAndSumFile reads path names from paths and sends digests of the corresponding
 // files on c until either paths or done is closed.
-func digester(done <-chan struct{}, paths <-chan string, c chan<- result) {
+func readAndSumFile(done <-chan struct{}, paths <-chan string, c chan<- result) {
 	for path := range paths {
 		data, err := ioutil.ReadFile(path)
 		select {
@@ -82,7 +82,7 @@ func MD5All(root string) (map[string][md5.Size]byte, error) {
 	done := make(chan struct{})
 	defer close(done)
 
-	paths, errc := walkFiles(done, root)
+	paths, errc := walkFilesTree(done, root)
 
 	// Start a fixed number of goroutines to read and digest files.
 	results := make(chan result, 10)
@@ -91,7 +91,7 @@ func MD5All(root string) (map[string][md5.Size]byte, error) {
 	wg.Add(numDigesters)
 	for i := 0; i < numDigesters; i++ {
 		go func() {
-			digester(done, paths, results)
+			readAndSumFile(done, paths, results)
 			wg.Done()
 		}()
 	}
