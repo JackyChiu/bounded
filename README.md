@@ -1,9 +1,6 @@
-# Bounded Goroutine Management [![CircleCI](https://circleci.com/gh/JackyChiu/bounded.svg?style=svg)](https://circleci.com/gh/JackyChiu/bounded)
-`bounded` is a thin concurrency wrapper that provides bounded goroutine management.
+# `bounded` [![](https://circleci.com/gh/JackyChiu/bounded.svg?style=svg)](https://circleci.com/gh/JackyChiu/bounded)
 
-Go is designed with lightweight concurrency primitives. Goroutines model concurrent tasks that could be executed by calling `go`.
-Much programs end up having boundless concurrency and as a result they comes with producing a significant amount of overhead.
-
+## Bounded Goroutine Management
 `bounded.Pool` is a bounded goroutine manager. It ensures that goroutines spawned are
 within the given limit. The benefit being the ability to think and write go
 programs without worrying about the overhead of spawning too much goroutines.
@@ -18,6 +15,11 @@ for item := range itemStream {
 }
 ```
 
+## Why
+Go is designed with lightweight concurrency primitives. Goroutines model concurrent tasks that could be executed by calling `go`.
+Much programs end up having boundless concurrency and as a result they comes with producing a significant amount of overhead.
+
+## Synchronization And Error Capture
 Pool provides some simple synchronization and error capturing abilities too.
 Developers can wait for all goroutines in the pool to complete and exit with
 `Wait()`. If an error occurs in the pool, it's capture and the goroutines are
@@ -29,6 +31,7 @@ if err := pool.Wait(); err != nil {
 }
 ```
 
+## Lazy
 Pool lazily spawns workers in the pool as tasks are queued up. Tasks are
 favored to be completed by an existing worker. If all workers are busy then
 it will spawn a new worker and enqueue the task again. This behaviour is
