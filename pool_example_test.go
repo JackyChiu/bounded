@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"sync"
-	"time"
 
 	"github.com/JackyChiu/bounded"
 )
@@ -23,87 +21,6 @@ type Search func(ctx context.Context, query string) (Result, error)
 func fakeSearch(kind string) Search {
 	return func(_ context.Context, query string) (Result, error) {
 		return Result(fmt.Sprintf("%s result for %q", kind, query)), nil
-	}
-}
-
-func fake(input string) error {
-	return nil
-}
-
-func ExamplePool_without() {
-	parts := make([]string, 20)
-	partChan := make(chan string)
-	errChan := make(chan error, 1)
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
-	// Bounded Consumers/Workers
-	var wg sync.WaitGroup
-	wg.Add(20)
-	for i := 0; i < 20; i++ {
-		go func() {
-			defer wg.Done()
-			for part := range partChan {
-				if err := fake(part); err != nil {
-					errChan <- ctx.Err()
-					return
-				}
-
-				select {
-				case <-ctx.Done():
-					errChan <- ctx.Err()
-					return
-				default:
-				}
-			}
-		}()
-	}
-
-	// Producer in main goroutine
-	for _, part := range parts {
-		select {
-		case partChan <- part:
-		case <-ctx.Done():
-			break
-		}
-	}
-	close(partChan)
-	wg.Wait()
-
-	select {
-	case <-errChan:
-		cancel()
-		// error occured
-		// return err
-	default:
-		// success
-		// return nil
-	}
-}
-
-func ExamplePool_with() {
-	parts := make([]string, 20)
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
-	// Bounded workers
-	pool, ctx := bounded.NewPool(ctx, 20)
-	for _, part := range parts {
-		part := part // https://golang.org/doc/faq#closures_and_goroutines
-		select {
-		case <-ctx.Done():
-			break
-		default:
-			pool.Go(func() error {
-				return fake(part)
-			})
-		}
-	}
-
-	if err := pool.Wait(); err != nil {
-		//return err
 	}
 }
 

@@ -188,9 +188,7 @@ func TestWithContext(t *testing.T) {
 		}
 
 		if err := pool.Wait(); err != tc.want {
-			t.Errorf("after %T.Go(func() error { return err }) for err in %v\n"+
-				"g.Wait() = %v; want %v",
-				pool, tc.errs, err, tc.want)
+			t.Errorf("unexpected error, expected: %v, got: %v", tc.want, err)
 		}
 
 		canceled := false
@@ -200,9 +198,7 @@ func TestWithContext(t *testing.T) {
 		default:
 		}
 		if !canceled {
-			t.Errorf("after %T.Go(func() error { return err }) for err in %v\n"+
-				"ctx.Done() was not closed",
-				pool, tc.errs)
+			t.Error("expected context to be canceled")
 		}
 	}
 }
