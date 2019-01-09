@@ -23,9 +23,8 @@ type Pool struct {
 	errPool errorPool
 	ctx     context.Context
 
-	tasks         chan taskFunc
-	tasksBuffered chan taskFunc
-	closeOnce     sync.Once
+	tasks     chan taskFunc
+	closeOnce sync.Once
 	// taskWg is used for task completion synchronization in the pool.
 	taskWg sync.WaitGroup
 
@@ -44,10 +43,9 @@ func NewPool(ctx context.Context, poolSize int) (*Pool, context.Context) {
 		errPool: errorPool{
 			cancel: cancel,
 		},
-		ctx:           ctx,
-		tasks:         make(chan taskFunc),
-		tasksBuffered: make(chan taskFunc, poolSize),
-		limit:         poolSize,
+		ctx:   ctx,
+		tasks: make(chan taskFunc),
+		limit: poolSize,
 	}
 	p.startWorker()
 	return p, ctx
@@ -57,30 +55,28 @@ func NewPool(ctx context.Context, poolSize int) (*Pool, context.Context) {
 // Calls to Go will spin up workers lazily, as the workers are blocked, new
 // workers will be spawned until the goroutine limit has been reached.
 func (p *Pool) Go(task taskFunc) {
-	if p.Size() >= int(p.limit) {
+	p.taskWg.Add(1)
+
+	if p.Size() < int(p.limit) {
+		// This code path is only used while the Pool is still lazily
+		// loading goroutines.
 		select {
-		case p.tasksBuffered <- task:
+		case p.tasks <- task:
+			return
 		case <-p.ctx.Done():
+			p.taskWg.Done()
+			return
+		default:
 		}
-		return
+		// Failed sends to the task channel tell us that the workers are busy.
+		// Start a new worker to help execute tasks.
+		p.startWorker()
 	}
-
-	// This code path is only used while the Pool is still lazily
-	// loading goroutines.
-	select {
-	case p.tasks <- task:
-		return
-	case <-p.ctx.Done():
-		return
-	default:
-	}
-	// Failed sends to the task channel tell us that the workers are busy.
-	// Start a new worker to help execute tasks.
-	p.startWorker()
 
 	select {
 	case p.tasks <- task:
 	case <-p.ctx.Done():
+		p.taskWg.Done()
 	}
 }
 
@@ -93,7 +89,6 @@ func (p *Pool) Wait() error {
 
 	p.closeOnce.Do(func() {
 		close(p.tasks)
-		close(p.tasksBuffered)
 	})
 
 	// Finally we wait for the worker goroutines to exit.
@@ -118,18 +113,10 @@ func (p *Pool) startWorker() {
 	p.errPool.Go(func() error {
 		for {
 			select {
-			case task, ok := <-p.tasksBuffered:
-				if !ok {
-					return nil
-				}
-				p.taskWg.Add(1)
-				p.errPool.execute(task)
-				p.taskWg.Done()
 			case task, ok := <-p.tasks:
 				if !ok {
 					return nil
 				}
-				p.taskWg.Add(1)
 				p.errPool.execute(task)
 				p.taskWg.Done()
 			case <-p.ctx.Done():
