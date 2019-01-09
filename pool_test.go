@@ -62,11 +62,12 @@ func TestPool_lazily_loads_goroutines(t *testing.T) {
 	poolSize := 50
 	pool, ctx := NewPool(ctx, poolSize)
 
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 50; i++ {
 		pool.Go(func() error {
 			// "light" task
 			return nil
 		})
+		time.Sleep(5 * time.Millisecond)
 	}
 
 	if err := pool.Wait(); err != nil {
@@ -86,7 +87,7 @@ func TestPool_exits_when_context_is_cancelled(t *testing.T) {
 	var events int32
 
 	for i := 0; i < 100; i++ {
-		if i >= 50 {
+		if i >= 80 {
 			cancel()
 		}
 		pool.Go(func() error {
