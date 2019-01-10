@@ -7,6 +7,7 @@
 - Captures the first non-nil `error` in the pool
 - Notifies other goroutines through the cancellation the returned context
 - Ability to wait for all goroutines to complete
+- Insignificant to no overhead compared to hand rolled worker pools
 
 ```bash
 go get github.com/JackyChiu/bounded
