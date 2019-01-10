@@ -1,4 +1,4 @@
-# `bounded` [![](https://circleci.com/gh/JackyChiu/bounded.svg?style=svg)](https://circleci.com/gh/JackyChiu/bounded)
+# `bounded` [![](https://circleci.com/gh/JackyChiu/bounded.svg?style=svg)](https://circleci.com/gh/JackyChiu/bounded) [![Documentation](https://godoc.org/github.com/JackyChiu/bounded?status.svg)](https://godoc.org/github.com/JackyChiu/bounded/)
 
 ## Bounded Goroutine Management
 `bounded.Pool` is a bounded goroutine manager. Pool provides:
