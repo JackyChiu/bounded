@@ -1,9 +1,0 @@
-#!/bin/bash
-
-echo "Running example that reads files and calculates a MD5 sum of each"
-
-echo "Running example without bounded.Pool"
-go run examples/without_pkg/md5_all.go $GOPATH/src/github.com
-
-echo "Running example using bounded.Pool"
-go run examples/bounded/md5_all.go $GOPATH/src/github.com/

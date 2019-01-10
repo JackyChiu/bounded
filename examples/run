@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Running example that reads files and calculates a MD5 sum of each"
+echo "Comparing benchmarks without and using bounded.Pool. The results should be similar."
 echo ""
 
 echo "Running example without bounded.Pool"

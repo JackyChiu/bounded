@@ -32,6 +32,9 @@ if err := pool.Wait(); err != nil {
 }
 ```
 
+For a more complete example checkout the
+[examples directory](https://github.com/JackyChiu/bounded/blob/master/examples/bounded/md5_all.go).
+
 ## Why
 Go encourages programming with concurrent design, allowing us to execute
 independent tasks with goroutines.  Much programs end up having boundless
@@ -105,7 +108,7 @@ go func() {
   // This goroutines
   for message := range stream {
     pool.Go(func() error {
-      // process message to sent to results channel
+      // process message to send to results channel
     })
   }
   pool.Wait()
@@ -120,7 +123,7 @@ if err := pool.Wait(); err != nil {
 }
 ```
 
-### Producer Channels
+### Performance
 
 In the producer/consumer model shown above, there is only one goroutine
 consuming messages from the `messages` channel. Compared to possible hand roll
