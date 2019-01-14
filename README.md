@@ -46,6 +46,8 @@ This package is a attempt at providing an thin API (along with synchronization/
 error capturing built-in) to allow developers to continue programming with the
 same mental model without concern for the overhead.
 
+The API and error capturing was inspired by the [errgroup](https://godoc.org/golang.org/x/sync/errgroup) package.
+
 ## Synchronization And Error Capture
 Pool provides simple synchronization and error capturing abilities. It provides
 an API to wait for all tasks in the pool to complete and exit with `Wait()`. If
