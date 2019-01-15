@@ -108,7 +108,6 @@ responsible for closing the `results` channel.
 results := make(chan results)
 go func() {
   defer close(results)
-  // This goroutines
   for message := range stream {
     pool.Go(func() error {
       // process message to send to results channel
