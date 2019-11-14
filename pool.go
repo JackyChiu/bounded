@@ -3,6 +3,7 @@ package bounded
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 )
 
 // Pool is a bounded goroutine manager. It ensures that goroutines spawned are
@@ -26,16 +27,14 @@ type Pool struct {
 	// taskWg is used for task completion synchronization in the pool.
 	taskWg sync.WaitGroup
 
-	limit int
-	size  int
-	// lock is used to have an exclusive writer to the size of the pool.
-	lock sync.RWMutex
+	limit uint32
+	size  uint32
 }
 
 // NewPool returns a Pool instances and a new context. The number of goroutines
 // spawned are limited by the given max capacity. The new context includes
 // cancellations from the goroutines in the Pool.
-func NewPool(ctx context.Context, poolSize int) (*Pool, context.Context) {
+func NewPool(ctx context.Context, poolSize uint32) (*Pool, context.Context) {
 	ctx, cancel := context.WithCancel(ctx)
 	p := &Pool{
 		errPool: errorPool{
@@ -55,7 +54,7 @@ func NewPool(ctx context.Context, poolSize int) (*Pool, context.Context) {
 func (p *Pool) Go(task func() error) {
 	p.taskWg.Add(1)
 
-	if p.Size() < int(p.limit) {
+	if p.Size() < p.limit {
 		// This code path is only used while the Pool is still lazily
 		// loading goroutines.
 		select {
@@ -94,16 +93,12 @@ func (p *Pool) Wait() error {
 }
 
 // Size is the number of goroutines running in the pool.
-func (p *Pool) Size() int {
-	p.lock.RLock()
-	defer p.lock.RUnlock()
-	return p.size
+func (p *Pool) Size() uint32 {
+	return atomic.LoadUint32(&p.size)
 }
 
 func (p *Pool) incrementSize() {
-	p.lock.Lock()
-	p.size++
-	p.lock.Unlock()
+	p.size = atomic.AddUint32(&p.size, 1)
 }
 
 // startWorker spins up a worker ready to execute incoming tasks.
