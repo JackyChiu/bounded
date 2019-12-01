@@ -98,7 +98,7 @@ func (p *Pool) Size() uint32 {
 }
 
 func (p *Pool) incrementSize() {
-	p.size = atomic.AddUint32(&p.size, 1)
+	atomic.AddUint32(&p.size, 1)
 }
 
 // startWorker spins up a worker ready to execute incoming tasks.

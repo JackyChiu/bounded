@@ -10,7 +10,7 @@ import (
 
 func TestPool(t *testing.T) {
 	poolSize := 5
-	pool, _ := NewPool(context.Background(), poolSize)
+	pool, _ := NewPool(context.Background(), uint32(poolSize))
 
 	results := make(chan int)
 
@@ -36,7 +36,7 @@ func TestPool_limits_goroutines(t *testing.T) {
 	defer cancel()
 
 	poolSize := 50
-	pool, ctx := NewPool(ctx, poolSize)
+	pool, ctx := NewPool(ctx, uint32(poolSize))
 
 	for i := 0; i < 100; i++ {
 		pool.Go(func() error {
@@ -50,7 +50,7 @@ func TestPool_limits_goroutines(t *testing.T) {
 		t.Errorf("expected no errors, got: %v", err)
 	}
 
-	if size := pool.Size(); size > poolSize {
+	if size := pool.Size(); size > uint32(poolSize) {
 		t.Errorf("expected goroutines to cap at %v, got: %v", poolSize, size)
 	}
 }
@@ -60,9 +60,9 @@ func TestPool_lazily_loads_goroutines(t *testing.T) {
 	defer cancel()
 
 	poolSize := 50
-	pool, ctx := NewPool(ctx, poolSize)
+	pool, ctx := NewPool(ctx, uint32(poolSize))
 
-	for i := 0; i < 50; i++ {
+	for i := 0; i < poolSize; i++ {
 		pool.Go(func() error {
 			// "light" task
 			return nil
@@ -74,7 +74,7 @@ func TestPool_lazily_loads_goroutines(t *testing.T) {
 		t.Errorf("expected no errors, got: %v", err)
 	}
 
-	if size := pool.Size(); size >= poolSize {
+	if size := pool.Size(); size >= uint32(poolSize) {
 		t.Errorf("expected goroutines to run lazily, got: %v", size)
 	}
 }
